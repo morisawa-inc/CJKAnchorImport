@@ -205,7 +205,7 @@ class CJKAlternateMetricsGPOSReader(object):
     
     def __make_adjustments_from_subtable(self, subtable):
         adjustments = []
-        if subtable.Format == 2:
+        if subtable.Format in [1, 2]:
             make_adjustment_from_value = {
                 1:  self.__make_adjustment_from_value_in_format_1,
                 2:  self.__make_adjustment_from_value_in_format_2,
@@ -216,10 +216,18 @@ class CJKAlternateMetricsGPOSReader(object):
             }.get(subtable.ValueFormat)
             if make_adjustment_from_value:
                 glyphs = [str(glyph) for glyph in subtable.Coverage.glyphs]
-                for i, value in enumerate(subtable.Value):
+                for i, value in enumerate(self.__ensure_enumerable(subtable.Value)):
                     adjustments.append(make_adjustment_from_value(glyphs[i], value))
         return adjustments
     
+    @staticmethod
+    def __ensure_enumerable(obj):
+        try:
+            iter(obj)
+        except TypeError, te:
+            return [obj]
+        return obj
+        
     # - 
     
     @staticmethod
