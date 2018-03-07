@@ -20,13 +20,21 @@ class CJKAnchorImportPlugin(GeneralPlugin):
     def documentOpened(self, notification):
         document = notification.object()
         font = document.font
-        if font.filepath and os.path.splitext(font.filepath)[1].lower() in ['.otf', '.ttf', '.otc', '.ttc']:
+        if font.filepath:
             self.__import_anchors(font)
     
     def __import_anchors(self, font):
         with GSFontUpdatingContext(font):
-            reader = CJKAlternateMetricsGPOSReader(TTFont(font.filepath))
-            if reader.has_metrics:
+            
+            reader = None
+            extension = os.path.splitext(font.filepath)[1].lower()
+            
+            if extension in ['.otf', '.ttf', '.otc', '.ttc']:
+                reader = CJKAlternateMetricsGPOSReader(TTFont(font.filepath))
+            elif extension in ['.ufo']:
+                reader = CJKAlternateMetricsUFOReader(font)
+                
+            if reader and reader.has_metrics:
                 cid_rename_dict = self.__make_cid_rename_dict(font, dest='cid')
                 for glyph in font.glyphs:
                     for master in font.masters:
@@ -242,6 +250,84 @@ class CJKAlternateMetricsGPOSReader(object):
             print('{0}:'.format(tag))
             for adjustment in reader.adjustments_from_tag(tag):
                 print('    {0}'.format(str(adjustment)))
+        
+        # prettification
+        pprint(reader.edge_insets)
+
+
+class CJKAlternateMetricsUFOReader(object):
+    
+    def __init__(self, font):
+        self.__font = font
+        self.__setup(font)
+    
+    def __setup(self, font):
+        self.__edge_insets_dict = self.__make_edge_insets_dict()
+    
+    def __make_edge_insets_from_glyph(self, glyph):
+        left, right, top, bottom = (0, 0, 0, 0)
+        
+        horizontals = []
+        verticals   = []
+        
+        # assuming that we have only one master when imported from an ufo
+        
+        ascender  = glyph.parent.masters[-1].ascender
+        descender = glyph.parent.masters[-1].descender
+        
+        guides = glyph.userData['com.typemytype.robofont.guides']
+        if guides is not None:
+            for guide in guides:
+                angle = guide['angle']
+                if angle == 90.0:
+                    horizontals.append(guide['x'])
+                elif angle == 0.0:
+                    verticals.append(guide['y'])
+        
+        horizontals.sort()
+        verticals.sort()
+        
+        if len(horizontals) >= 2:
+            left = horizontals[0]
+            right = glyph.layers[-1].width - horizontals[-1]
+        
+        if len(verticals) >= 2:
+            top = ascender - verticals[-1]
+            bottom = -(descender - verticals[0])
+        
+        if left != 0.0 or right != 0.0 or top != 0.0 or bottom != 0.0:
+            return EdgeInsets(left, right, top, bottom)
+        
+        return None
+        
+    def __make_edge_insets_dict(self):
+        d = {}
+        for glyph in self.__font.glyphs:
+            insets = self.__make_edge_insets_from_glyph(glyph)
+            if insets:
+                d[glyph.name] = insets
+        return d
+    
+    # - public methods
+    
+    @property
+    def font(self):
+        return self.__font
+    
+    @property
+    def has_metrics(self):
+        return len(self.__edge_insets_dict) > 0
+    
+    @property
+    def edge_insets(self):
+        return self.__edge_insets_dict
+        
+    @staticmethod
+    def test_drive_with_font_at_path(path):
+        from pprint import pprint
+        
+        font = GSFont(path)
+        reader = CJKAlternateMetricsUFOReader(font)
         
         # prettification
         pprint(reader.edge_insets)
