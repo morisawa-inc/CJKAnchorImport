@@ -45,13 +45,11 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                         if edge_insets:
                             center = NSPoint(layer.width / 2.0, font.upm / 2.0 + master.descender)
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
-                            if edge_insets.left != 0:
+                            if edge_insets.left != 0 or edge_insets.right != 0:
                                 self.__upsert_anchor(layer, 'LSB', NSPoint(edge_insets.left,  center.y))
-                            if edge_insets.right != 0:    
                                 self.__upsert_anchor(layer, 'RSB', NSPoint(layer.width - edge_insets.right, center.y))
-                            if edge_insets.top != 0:
+                            if edge_insets.top != 0 or edge_insets.bottom != 0:
                                 self.__upsert_anchor(layer, 'TSB', NSPoint(center.x, font.upm - edge_insets.top + master.descender))
-                            if edge_insets.bottom != 0:
                                 self.__upsert_anchor(layer, 'BSB', NSPoint(center.x, edge_insets.bottom + master.descender))
                         else:
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
