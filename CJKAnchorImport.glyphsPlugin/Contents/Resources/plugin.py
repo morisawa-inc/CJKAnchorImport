@@ -222,8 +222,14 @@ class CJKAlternateMetricsGPOSReader(object):
             }.get(subtable.ValueFormat)
             if make_adjustment_from_value:
                 glyphs = [str(glyph) for glyph in subtable.Coverage.glyphs]
-                for i, value in enumerate(self.__ensure_enumerable(subtable.Value)):
-                    adjustments.append(make_adjustment_from_value(glyphs[i], value))
+                values = self.__ensure_enumerable(subtable.Value)
+                if len(glyphs) == len(values):
+                    for i, value in enumerate(self.__ensure_enumerable(subtable.Value)):
+                        adjustments.append(make_adjustment_from_value(glyphs[i], value))
+                elif len(values) == 1:
+                    value = values[-1]
+                    for glyph in glyphs:
+                        adjustments.append(make_adjustment_from_value(glyph, value))
         return adjustments
     
     @staticmethod
