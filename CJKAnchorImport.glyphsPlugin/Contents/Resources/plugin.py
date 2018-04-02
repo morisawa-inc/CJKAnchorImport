@@ -349,6 +349,10 @@ class CJKAlternateMetricsUFOReader(object):
     @property
     def edge_insets(self):
         return self.__edge_insets_dict
+    
+    @property
+    def vmtx(self):
+        return {}
         
     @staticmethod
     def test_drive_with_font_at_path(path):
