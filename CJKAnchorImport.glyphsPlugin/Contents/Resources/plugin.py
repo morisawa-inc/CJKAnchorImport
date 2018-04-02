@@ -39,9 +39,18 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                 for glyph in font.glyphs:
                     for master in font.masters:
                         layer = glyph.layers[master.id]
+                        
+                        offset_y = 0.0
+                        vertical_metrics = reader.vmtx.get(glyph.name)
+                        if not vertical_metrics and cid_rename_dict and glyph.name in cid_rename_dict:
+                            vertical_metrics = reader.vmtx.get(cid_rename_dict[glyph.name])
+                        if vertical_metrics:
+                            offset_y = vertical_metrics.TSB - round(layer.TSB)
+                        
                         edge_insets = reader.edge_insets.get(glyph.name)
                         if not edge_insets and cid_rename_dict and glyph.name in cid_rename_dict:
                             edge_insets = reader.edge_insets.get(cid_rename_dict[glyph.name])
+                        
                         if edge_insets:
                             center = NSPoint(layer.width / 2.0, font.upm / 2.0 + master.descender)
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
@@ -49,8 +58,8 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                                 self.__upsert_anchor(layer, 'LSB', NSPoint(edge_insets.left,  center.y))
                                 self.__upsert_anchor(layer, 'RSB', NSPoint(layer.width - edge_insets.right, center.y))
                             if edge_insets.top != 0 or edge_insets.bottom != 0:
-                                self.__upsert_anchor(layer, 'TSB', NSPoint(center.x, font.upm - edge_insets.top + master.descender))
-                                self.__upsert_anchor(layer, 'BSB', NSPoint(center.x, edge_insets.bottom + master.descender))
+                                self.__upsert_anchor(layer, 'TSB', NSPoint(center.x, font.upm - edge_insets.top + master.descender + offset_y))
+                                self.__upsert_anchor(layer, 'BSB', NSPoint(center.x, edge_insets.bottom + master.descender + offset_y))
                         else:
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
         
@@ -95,6 +104,7 @@ H = 0
 V = 1
 Adjustment = collections.namedtuple('Adjustment', ['glyph', 'placement', 'advance', 'direction'])
 EdgeInsets = collections.namedtuple('EdgeInsets', ['left', 'right', 'top', 'bottom'])
+VerticalMetrics = collections.namedtuple('VerticalMetrics', ['height', 'TSB'])
 
 class CJKAlternateMetricsGPOSReader(object):
     
@@ -111,6 +121,9 @@ class CJKAlternateMetricsGPOSReader(object):
         self.__tag_lookup_dict = self.__make_tag_lookup_dict(table)
         self.__lookup_adjustments_dict = self.__make_lookup_adjustments_dict(table)
         self.__edge_insets_dict = self.__make_edge_insets_dict()
+        vmtx = font['vmtx']
+        self.__vmtx = vmtx
+        self.__vmtx_dict = self.__make_vmtx_dict()
     
     def __make_tag_list(self, table):
         l = [r.FeatureTag for r in table.FeatureList.FeatureRecord]
@@ -155,6 +168,13 @@ class CJKAlternateMetricsGPOSReader(object):
             d[glyph] = self.__make_edge_insets_from_adjustments(d[glyph])
         return d
     
+    def __make_vmtx_dict(self):
+        d = {}
+        if self.__vmtx:
+            for key, value in self.__vmtx.metrics.items():
+                d[key] = VerticalMetrics(*value)
+        return d
+    
     # - public methods
     
     @property
@@ -172,6 +192,10 @@ class CJKAlternateMetricsGPOSReader(object):
     @property
     def edge_insets(self):
         return self.__edge_insets_dict
+    
+    @property
+    def vmtx(self):
+        return self.__vmtx_dict
     
     def lookups_from_tag(self, tag):
         return self.__tag_lookup_dict.get(tag, [])
