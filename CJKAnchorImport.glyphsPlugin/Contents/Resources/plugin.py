@@ -57,12 +57,28 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                         if edge_insets:
                             center = NSPoint(layer.width / 2.0, font.upm / 2.0 + master.descender)
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
+                            anchor_lsb = None
+                            anchor_rsb = None
+                            anchor_tsb = None
+                            anchor_bsb = None
                             if edge_insets.left != 0 or edge_insets.right != 0:
-                                self.__upsert_anchor(layer, 'LSB', NSPoint(edge_insets.left,  center.y))
-                                self.__upsert_anchor(layer, 'RSB', NSPoint(layer.width - edge_insets.right, center.y))
+                                x1 = edge_insets.left
+                                x2 = layer.width - edge_insets.right
+                                anchor_lsb = self.__upsert_anchor(layer, 'LSB', NSPoint(x1, center.y))
+                                anchor_rsb = self.__upsert_anchor(layer, 'RSB', NSPoint(x2, center.y))
+                                center.x = round((x1 + x2) / 2.0)
                             if edge_insets.top != 0 or edge_insets.bottom != 0:
-                                self.__upsert_anchor(layer, 'TSB', NSPoint(center.x, font.upm - edge_insets.top + master.descender + offset_y))
-                                self.__upsert_anchor(layer, 'BSB', NSPoint(center.x, edge_insets.bottom + master.descender + offset_y))
+                                y1 = font.upm - edge_insets.top + master.descender + offset_y
+                                y2 = edge_insets.bottom + master.descender + offset_y
+                                anchor_tsb = self.__upsert_anchor(layer, 'TSB', NSPoint(center.x, y1))
+                                anchor_bsb = self.__upsert_anchor(layer, 'BSB', NSPoint(center.x, y2))
+                                center.y = round((y1 + y2) / 2.0)
+                            if anchor_lsb and anchor_rsb and anchor_tsb and anchor_bsb:
+                                anchor_lsb.position = NSPoint(anchor_lsb.position.x, center.y)
+                                anchor_rsb.position = NSPoint(anchor_rsb.position.x, center.y)
+                                anchor_tsb.position = NSPoint(center.x, anchor_tsb.position.y)
+                                anchor_bsb.position = NSPoint(center.x, anchor_bsb.position.y)
+                            
                         else:
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
         
@@ -71,10 +87,14 @@ class CJKAnchorImportPlugin(GeneralPlugin):
             layer.removeAnchorWithName_(name)
     
     def __upsert_anchor(self, layer, name, position):
+        anchor = None
         if name in layer.anchors:
-            layer.anchors[name].position = position
+            anchor = layer.anchors[name]
+            anchor.position = position
         else:
-            layer.anchors.append(GSAnchor(name, position))
+            anchor = GSAnchor(name, position)
+            layer.anchors.append(anchor)
+        return anchor
 
     def __make_cid_rename_dict(self, font, dest='cid'):
         operation = objc.lookUpClass('GSExportInstanceOperation').alloc().initWithFont_instance_format_(Glyphs.font, None, 0)
