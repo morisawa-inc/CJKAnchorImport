@@ -45,7 +45,10 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                         if not vertical_metrics and cid_rename_dict and glyph.name in cid_rename_dict:
                             vertical_metrics = reader.vmtx.get(cid_rename_dict[glyph.name])
                         if vertical_metrics:
-                            offset_y = vertical_metrics.TSB - round(layer.TSB)
+                            layer_tsb = layer.TSB
+                            if NSEqualRects(layer.bounds, NSZeroRect):
+                                layer_tsb = master.ascender
+                            offset_y = vertical_metrics.TSB - round(layer_tsb)
                         
                         edge_insets = reader.edge_insets.get(glyph.name)
                         if not edge_insets and cid_rename_dict and glyph.name in cid_rename_dict:
