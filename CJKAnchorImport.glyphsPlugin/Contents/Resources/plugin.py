@@ -12,6 +12,8 @@ import collections
 from fontTools.ttLib import TTFont
 from Foundation import NSBundle
 
+NEEDS_APPLY_VMTX_VALUES_ON_IMPORT = True
+
 class CJKAnchorImportPlugin(GeneralPlugin):
     
     def start(self):
@@ -49,6 +51,11 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                             if NSEqualRects(layer.bounds, NSZeroRect):
                                 layer_tsb = master.ascender
                             offset_y = vertical_metrics.TSB - round(layer_tsb)
+                            
+                            if NEEDS_APPLY_VMTX_VALUES_ON_IMPORT:
+                                if offset_y != 0.0 or vertical_metrics.height != font.upm:
+                                    layer.setVertOrigin_(offset_y)
+                                    layer.setVertWidth_(vertical_metrics.height)
                         
                         edge_insets = reader.edge_insets.get(glyph.name)
                         if not edge_insets and cid_rename_dict and glyph.name in cid_rename_dict:
