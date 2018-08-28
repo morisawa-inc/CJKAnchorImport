@@ -10,7 +10,7 @@ import os
 import contextlib
 import collections
 from fontTools.ttLib import TTFont
-from Foundation import NSBundle
+from Foundation import NSBundle, NSPoint, NSEqualRects, NSZeroRect
 
 NEEDS_APPLY_VMTX_VALUES_ON_IMPORT = True
 
