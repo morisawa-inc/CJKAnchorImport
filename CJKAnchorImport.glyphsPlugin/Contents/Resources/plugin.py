@@ -7,8 +7,24 @@ from GlyphsApp import *
 from GlyphsApp.plugins import *
 
 import os
+import sys
 import contextlib
 import collections
+
+def use_installed_modules_when_available():
+    if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber> 2.4:
+        extra_module_paths = [
+            os.path.expanduser('~/Library/Application Support/Glyphs/Scripts'),
+            '/Library/Application Support/Glyphs/Scripts', 
+            '/Network/Library/Application Support/Glyphs/Scripts'
+        ]
+        for path in extra_module_paths:
+            if path not in sys.path:
+                if os.path.exists(path):
+                    sys.path.append(path)
+
+use_installed_modules_when_available()
+
 from fontTools.ttLib import TTFont
 from Foundation import NSBundle, NSPoint, NSEqualRects, NSZeroRect
 
