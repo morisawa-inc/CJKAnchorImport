@@ -48,7 +48,9 @@ class CJKAnchorImportPlugin(GeneralPlugin):
             extension = os.path.splitext(font.filepath)[1].lower()
             
             if extension in ['.otf', '.ttf', '.otc', '.ttc']:
-                reader = CJKAlternateMetricsGPOSReader(TTFont(font.filepath))
+                ttfont = TTFont(font.filepath)
+                if CJKAlternateMetricsGPOSReader.can_open_font(ttfont):
+                    reader = CJKAlternateMetricsGPOSReader(ttfont)
             elif extension in ['.ufo']:
                 reader = CJKAlternateMetricsUFOReader(font)
                 
@@ -154,6 +156,12 @@ VerticalMetrics = collections.namedtuple('VerticalMetrics', ['height', 'TSB'])
 
 class CJKAlternateMetricsGPOSReader(object):
     
+    @classmethod
+    def can_open_font(cls, font):
+        if font and 'GPOS' in font:
+            return True
+        return False
+    
     def __init__(self, font):
         self.__font = font
         self.__setup(font)
@@ -161,15 +169,17 @@ class CJKAlternateMetricsGPOSReader(object):
     # - preparing lists and dictionaries
     
     def __setup(self, font):
-        table = font['GPOS'].table
-        self.__table = table
-        self.__tag_list = self.__make_tag_list(table)
-        self.__tag_lookup_dict = self.__make_tag_lookup_dict(table)
-        self.__lookup_adjustments_dict = self.__make_lookup_adjustments_dict(table)
-        self.__edge_insets_dict = self.__make_edge_insets_dict()
-        vmtx = font['vmtx']
-        self.__vmtx = vmtx
-        self.__vmtx_dict = self.__make_vmtx_dict()
+        if 'GPOS' in font:
+            table = font['GPOS'].table
+            self.__table = table
+            self.__tag_list = self.__make_tag_list(table)
+            self.__tag_lookup_dict = self.__make_tag_lookup_dict(table)
+            self.__lookup_adjustments_dict = self.__make_lookup_adjustments_dict(table)
+            self.__edge_insets_dict = self.__make_edge_insets_dict()
+        if 'vmtx' in font:
+            vmtx = font['vmtx']
+            self.__vmtx = vmtx
+            self.__vmtx_dict = self.__make_vmtx_dict()
     
     def __make_tag_list(self, table):
         l = [r.FeatureTag for r in table.FeatureList.FeatureRecord]
