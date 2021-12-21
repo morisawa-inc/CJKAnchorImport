@@ -169,6 +169,13 @@ class CJKAlternateMetricsGPOSReader(object):
     # - preparing lists and dictionaries
     
     def __setup(self, font):
+        self.__table = None
+        self.__tag_list = []
+        self.__tag_lookup_dict = {}
+        self.__lookup_adjustments_dict = {}
+        self.__edge_insets_dict = {}
+        self.__vmtx = None
+        self.__vmtx_dict = {}
         if 'GPOS' in font:
             table = font['GPOS'].table
             self.__table = table
