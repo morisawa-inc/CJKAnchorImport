@@ -12,11 +12,12 @@ import contextlib
 import collections
 
 def use_installed_modules_when_available():
-    if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber> 2.4:
+    app_name = 'Glyphs 3' if Glyphs.versionNumber > 3.0 else 'Glyphs'
+    if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber > 2.4:
         extra_module_paths = [
-            os.path.expanduser('~/Library/Application Support/Glyphs/Scripts'),
-            '/Library/Application Support/Glyphs/Scripts', 
-            '/Network/Library/Application Support/Glyphs/Scripts'
+            os.path.expanduser("~/Library/Application Support/{0}/Scripts".format(app_name)),
+            "/Library/Application Support/Glyphs/Scripts".format(app_name), 
+            "/Network/Library/Application Support/Glyphs/Scripts".format(app_name)
         ]
         for path in extra_module_paths:
             if path not in sys.path:
@@ -32,15 +33,18 @@ NEEDS_APPLY_VMTX_VALUES_ON_IMPORT = True
 
 class CJKAnchorImportPlugin(GeneralPlugin):
     
+    @objc.python_method
     def start(self):
         Glyphs.addCallback(self.documentOpened, DOCUMENTOPENED)
     
+    @objc.python_method
     def documentOpened(self, notification):
         document = notification.object()
         font = document.font
         if font.filepath:
             self.__import_anchors(font)
     
+    @objc.python_method
     def __import_anchors(self, font):
         with GSFontUpdatingContext(font):
             
@@ -107,10 +111,12 @@ class CJKAnchorImportPlugin(GeneralPlugin):
                         else:
                             self.__clear_anchors(layer, ('LSB', 'RSB', 'TSB', 'BSB'))
         
+    @objc.python_method
     def __clear_anchors(self, layer, names):
         for name in names:
             layer.removeAnchorWithName_(name)
     
+    @objc.python_method
     def __upsert_anchor(self, layer, name, position):
         anchor = None
         if name in layer.anchors:
@@ -121,19 +127,25 @@ class CJKAnchorImportPlugin(GeneralPlugin):
             layer.anchors.append(anchor)
         return anchor
 
+    @objc.python_method
     def __make_cid_rename_dict(self, font, dest='cid'):
-        operation = objc.lookUpClass('GSExportInstanceOperation').alloc().initWithFont_instance_format_(Glyphs.font, None, 0)
-        ros      = operation.CIDRescoureName()
-        ro       = operation.CIDShortRescoureName()
-        if ros and ro:
+        filename = None
+        if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber >= 3.0:
+            ro = GSGlyphsInfo.CIDRescoureName_(Glyphs.font)
+            filename = NSBundle.bundleForClass_(GSFont.__class__).pathForResource_ofType_("MapFile{0}".format(ro), 'txt')
+        else:
+            operation = objc.lookUpClass('GSExportInstanceOperation').alloc().initWithFont_instance_format_(Glyphs.font, None, 0)
+            ros      = operation.CIDRescoureName()
+            ro       = operation.CIDShortRescoureName()
             filename = NSBundle.bundleWithPath_(os.path.join(NSBundle.mainBundle().builtInPlugInsPath(), 'OTF.glyphsFileFormat')).pathForResource_ofType_('MapFile{0}'.format(ro), 'txt')
-            if filename:
-                with open(filename, 'r') as file:
-                    make_tuple = (lambda c: (c[1], 'cid{0:05d}'.format(int(c[0])))) if dest == 'cid' else (lambda c: ('cid{0:05d}'.format(int(c[0])), c[1]))
-                    rename_dict = dict([make_tuple(line.split('\t')) for line in file])
-                    return rename_dict
+        if filename:
+            with open(filename, 'r') as file:
+                make_tuple = (lambda c: (c[1], 'cid{0:05d}'.format(int(c[0])))) if dest == 'cid' else (lambda c: ('cid{0:05d}'.format(int(c[0])), c[1]))
+                rename_dict = dict([make_tuple(line.split('\t')) for line in file])
+                return rename_dict
         return None
     
+    @objc.python_method
     def __file__(self):
         """Please leave this method unchanged"""
         return __file__
@@ -206,7 +218,7 @@ class CJKAlternateMetricsGPOSReader(object):
         return d
 
     def __make_lookup_adjustments_dict(self, table):
-        return dict([[lookup, self.__make_adjustments_from_lookup(lookup)] for lookup in table.LookupList.Lookup])
+        return dict([[id(lookup), self.__make_adjustments_from_lookup(lookup)] for lookup in table.LookupList.Lookup])
     
     def __make_edge_insets_from_adjustments(self, adjustments):
         placement_x, advance_x, placement_y, advance_y = (0, 0, 0, 0)
@@ -264,7 +276,7 @@ class CJKAlternateMetricsGPOSReader(object):
         return self.__tag_lookup_dict.get(tag, [])
     
     def adjustments_from_lookup(self, lookup):
-        return self.__lookup_adjustments_dict.get(lookup, [])
+        return self.__lookup_adjustments_dict.get(id(lookup), [])
     
     def adjustments_from_tag(self, tag):
         return sum([self.adjustments_from_lookup(lookup) for lookup in self.lookups_from_tag(tag)], [])
@@ -323,7 +335,7 @@ class CJKAlternateMetricsGPOSReader(object):
     def __ensure_enumerable(obj):
         try:
             iter(obj)
-        except TypeError, te:
+        except TypeError:
             return [obj]
         return obj
         
