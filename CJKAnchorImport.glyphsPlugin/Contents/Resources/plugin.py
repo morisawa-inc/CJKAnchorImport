@@ -31,6 +31,31 @@ from Foundation import NSBundle, NSPoint, NSEqualRects, NSZeroRect
 
 NEEDS_APPLY_VMTX_VALUES_ON_IMPORT = True
 
+def CIDShortResourceName(obj, *args):
+    if len(args) == 1:
+        if obj.respondsToSelector_('CIDShortResourceName:'):
+            return obj.CIDShortResourceName_(obj)
+        if obj.respondsToSelector_('CIDShortRescoureName:'):
+            return obj.CIDShortRescoureName_(obj)
+        return None
+    if obj.respondsToSelector_('CIDShortResourceName'):
+        return obj.CIDShortResourceName()
+    if obj.respondsToSelector_('CIDShortRescoureName'):
+        return obj.CIDShortRescoureName()
+    return None
+
+def get_mapfile_name(font):
+    filename = None
+    if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber >= 3.0:
+        operation = objc.lookUpClass('GSExportInstanceOperation').alloc().initWithFont_instance_outlineFormat_containers_(Glyphs.font, None, 1, None)
+        ro = CIDShortResourceName(operation)
+        filename = NSBundle.bundleForClass_(GSFont.__class__).pathForResource_ofType_("MapFile{0}".format(ro), 'txt')
+    else:
+        operation = objc.lookUpClass('GSExportInstanceOperation').alloc().initWithFont_instance_format_(Glyphs.font, None, 0)
+        ro = CIDShortResourceName(operation)
+        filename = NSBundle.bundleWithPath_(os.path.join(NSBundle.mainBundle().builtInPlugInsPath(), 'OTF.glyphsFileFormat')).pathForResource_ofType_('MapFile{0}'.format(ro), 'txt')
+    return filename
+
 class CJKAnchorImportPlugin(GeneralPlugin):
     
     @objc.python_method
@@ -129,15 +154,7 @@ class CJKAnchorImportPlugin(GeneralPlugin):
 
     @objc.python_method
     def __make_cid_rename_dict(self, font, dest='cid'):
-        filename = None
-        if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber >= 3.0:
-            ro = GSGlyphsInfo.CIDRescoureName_(Glyphs.font)
-            filename = NSBundle.bundleForClass_(GSFont.__class__).pathForResource_ofType_("MapFile{0}".format(ro), 'txt')
-        else:
-            operation = objc.lookUpClass('GSExportInstanceOperation').alloc().initWithFont_instance_format_(Glyphs.font, None, 0)
-            ros      = operation.CIDRescoureName()
-            ro       = operation.CIDShortRescoureName()
-            filename = NSBundle.bundleWithPath_(os.path.join(NSBundle.mainBundle().builtInPlugInsPath(), 'OTF.glyphsFileFormat')).pathForResource_ofType_('MapFile{0}'.format(ro), 'txt')
+        filename = get_mapfile_name(font)
         if filename:
             with open(filename, 'r') as file:
                 make_tuple = (lambda c: (c[1], 'cid{0:05d}'.format(int(c[0])))) if dest == 'cid' else (lambda c: ('cid{0:05d}'.format(int(c[0])), c[1]))
