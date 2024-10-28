@@ -11,6 +11,10 @@ import sys
 import contextlib
 import collections
 
+# FIX: allows additional arguments when initializing GSAnchor on Glyphs 3.
+if type(GSAnchor.__new__) != type(GSCustomParameter.__new__):
+	GSAnchor.__new__ = GSCustomParameter.__new__
+
 def use_installed_modules_when_available():
     app_name = 'Glyphs 3' if Glyphs.versionNumber > 3.0 else 'Glyphs'
     if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber > 2.4:
